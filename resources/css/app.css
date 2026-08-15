@@ -1,0 +1,49 @@
+@import 'tailwindcss';
+@import '@fontsource/playfair-display/400.css';
+@import '@fontsource/playfair-display/500.css';
+@import '@fontsource/playfair-display/400-italic.css';
+@import '@fontsource-variable/geist';
+
+@theme {
+    --font-serif: 'Playfair Display', Georgia, serif;
+    --font-sans: 'Geist Variable', 'Helvetica Neue', Arial, sans-serif;
+
+    /* Palet warm monochrome + aksen emas dari logo DzarProject */
+    --color-bone: #f7f6f3;
+    --color-ink: #111111;
+    --color-muted: #787774;
+    --color-line: #eaeaea;
+    --color-gold: #c6a85c;
+
+    /* Kurva easing kustom — elemen masuk selalu ease-out kuat */
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    background-color: var(--color-bone);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+    background: var(--color-gold);
+    color: white;
+}
+
+/* Dropdown masuk: ease-out kuat, cepat (< 200ms) — dari skill animasi */
+@keyframes dropdownMasuk {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
