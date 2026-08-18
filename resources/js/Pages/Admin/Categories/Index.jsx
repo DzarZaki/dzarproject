@@ -1,75 +1,67 @@
-import { EmptyState, PageHeader, PrimaryButton, TableCard, THead } from '@/Components/Admin/ui';
-import ConfirmModal from '@/Components/ConfirmModal';
-import AdminLayout from '@/Layouts/AdminLayout';
-import { Link, router, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { Head, Link, router } from '@inertiajs/react'
+import AdminLayout from '@/Layouts/AdminLayout'
+import { EmptyState, LinkButton, PageHeader, PrimaryButton, TableCard, THead, Thumb } from '@/Components/Admin/ui'
 
-export default function Index({ categories }) {
-    const { errors } = usePage().props;
-    const [target, setTarget] = useState(null);
-
-    function hapus() {
-        router.delete(`/admin/categories/${target.id}`, {
-            onFinish: () => setTarget(null),
-        });
+export default function CategoriesIndex({ categories }) {
+    const hapus = (c) => {
+        if (!window.confirm(`Hapus kategori ${c.nama}?`)) return
+        router.delete(`/admin/categories/${c.id}`, { preserveScroll: true })
     }
 
     return (
         <AdminLayout>
-            <PageHeader judul="Kategori" deskripsi="Kelola kategori portofolio.">
-                <PrimaryButton onClick={() => router.get('/admin/categories/create')}>
-                    + Tambah Kategori
-                </PrimaryButton>
-            </PageHeader>
+            <Head title="Kategori" />
 
-            {errors.delete && (
-                <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    {errors.delete}
-                </div>
-            )}
+            <PageHeader
+                judul="Kategori"
+                catatan="Foto lanskap di sini hanya pajangan di landing page dan tidak ikut tampil di halaman Works. Fungsinya sebagai pintu masuk: saat diklik, pengunjung dibawa ke halaman Works yang sudah tersaring sesuai kategori."
+                aksi={
+                    <Link href="/admin/categories/create">
+                        <PrimaryButton type="button">Tambah</PrimaryButton>
+                    </Link>
+                }
+            />
 
-            <div className="mt-6">
+            {categories.length === 0 ? (
+                <EmptyState
+                    judul="Belum ada kategori"
+                    catatan="Buat kategori dulu, misalnya Wisuda dan Prewedding. Foto kategori tidak dihitung sebagai work, jadi pilih foto yang paling enak dilihat saja."
+                    aksi={
+                        <Link href="/admin/categories/create">
+                            <PrimaryButton type="button">Tambah kategori</PrimaryButton>
+                        </Link>
+                    }
+                />
+            ) : (
                 <TableCard>
-                    <THead>
-                        <th className="px-4 py-3 font-medium">Nama</th>
-                        <th className="px-4 py-3 font-medium">Slug</th>
-                        <th className="px-4 py-3 font-medium">Jumlah Work</th>
-                        <th className="px-4 py-3 text-right font-medium">Aksi</th>
-                    </THead>
+                    <THead kolom={['Foto pajangan', 'Nama', 'Slug', 'Jumlah work', 'Urutan', 'Aksi']} />
                     <tbody>
-                        {categories.map((category) => (
-                            <tr key={category.id} className="border-b border-line last:border-0">
-                                <td className="px-4 py-3 text-ink">{category.nama}</td>
-                                <td className="px-4 py-3 text-muted">{category.slug}</td>
-                                <td className="px-4 py-3 text-muted">{category.works_count}</td>
-                                <td className="px-4 py-3 text-right">
-                                    <Link
-                                        href={`/admin/categories/${category.id}/edit`}
-                                        className="mr-3 text-ink underline"
-                                    >
-                                        Ubah
-                                    </Link>
-                                    <button
-                                        onClick={() => setTarget(category)}
-                                        className="text-red-700 underline"
-                                    >
-                                        Hapus
-                                    </button>
+                        {categories.map((c) => (
+                            <tr key={c.id} className="border-b border-line last:border-0">
+                                <td className="px-4 py-3">
+                                    <Thumb src={c.thumb_url} alt={c.nama} ratio="aspect-video" />
+                                </td>
+                                <td className="px-4 py-3 text-ink">{c.nama}</td>
+                                <td className="px-4 py-3 text-muted">{c.slug}</td>
+                                <td className="px-4 py-3 text-muted">{c.jumlah_work}</td>
+                                <td className="px-4 py-3 text-muted">{c.urutan}</td>
+                                <td className="px-4 py-3">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <LinkButton href={`/admin/categories/${c.id}/edit`}>Ubah</LinkButton>
+                                        <button
+                                            type="button"
+                                            onClick={() => hapus(c)}
+                                            className="rounded-lg border border-red-200 px-3 py-1.5 text-[11px] uppercase tracking-[0.14em] text-red-700 transition-colors duration-150 hover:border-red-400"
+                                        >
+                                            Hapus
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}
                     </tbody>
                 </TableCard>
-                {categories.length === 0 && <EmptyState>Belum ada kategori. Tambahkan yang pertama.</EmptyState>}
-            </div>
-
-            <ConfirmModal
-                open={target !== null}
-                judul="Hapus Kategori"
-                pesan={`Yakin ingin menghapus kategori "${target?.nama}"? Tindakan ini tidak dapat dibatalkan.`}
-                onConfirm={hapus}
-                onClose={() => setTarget(null)}
-            />
+            )}
         </AdminLayout>
-    );
+    )
 }

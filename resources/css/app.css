@@ -36,7 +36,22 @@ body {
     color: white;
 }
 
-/* Dropdown masuk: ease-out kuat, cepat (< 200ms) — dari skill animasi */
+/* Teks putih di atas foto: diberi bayangan halus supaya selalu terbaca */
+.bayang-teks {
+    text-shadow: 0 1px 18px rgba(0, 0, 0, 0.5);
+}
+
+/* Sembunyikan scrollbar pada area geser horizontal */
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+/* Dropdown masuk: ease-out kuat, cepat (< 200ms) */
 @keyframes dropdownMasuk {
     from {
         opacity: 0;
@@ -45,5 +60,11 @@ body {
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
     }
 }

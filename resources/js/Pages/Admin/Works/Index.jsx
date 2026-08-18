@@ -1,89 +1,116 @@
-import { EmptyState, PageHeader, PrimaryButton, TableCard, THead } from '@/Components/Admin/ui';
-import ConfirmModal from '@/Components/ConfirmModal';
-import AdminLayout from '@/Layouts/AdminLayout';
-import { Link, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { Head, Link, router } from '@inertiajs/react'
+import AdminLayout from '@/Layouts/AdminLayout'
+import { Badge, EmptyState, LinkButton, PageHeader, Pil, PrimaryButton, TableCard, THead, Thumb } from '@/Components/Admin/ui'
 
-export default function Index({ works }) {
-    const [target, setTarget] = useState(null);
+const JENIS = ['slideshow', 'horizontal', 'work']
 
-    function hapus() {
-        router.delete(`/admin/works/${target.id}`, {
-            onFinish: () => setTarget(null),
-        });
+const CATATAN = {
+    slideshow: 'Foto full screen paling atas landing page. Cukup foto dan urutan tampil.',
+    horizontal: 'Strip foto potret yang bergeser saat halaman digulir. Punya halaman detail.',
+    work: 'Kartu persegi di halaman Works. Punya halaman detail.',
+}
+
+export default function WorksIndex({ jenis, labelJenis, works }) {
+    const slideshow = jenis === 'slideshow'
+    const horizontal = jenis === 'horizontal'
+
+    const kolom = slideshow
+        ? ['Foto', 'Urutan', 'Aksi']
+        : horizontal
+          ? ['Foto', 'Judul', 'Lokasi', 'Kategori', 'Ukuran', 'Urutan', 'Detail', 'Aksi']
+          : ['Foto', 'Judul', 'Lokasi', 'Kategori', 'Urutan', 'Detail', 'Aksi']
+
+    const hapus = (baris) => {
+        const nama = baris.judul ?? 'baris ini'
+        if (!window.confirm(`Hapus ${nama} beserta seluruh fotonya?`)) return
+
+        router.delete(`/admin/works/${baris.id}`, { preserveScroll: true })
     }
 
     return (
         <AdminLayout>
-            <PageHeader judul="Works" deskripsi="Kelola karya portofolio (1 work = 1 sesi/album).">
-                <PrimaryButton onClick={() => router.get('/admin/works/create')}>
-                    + Tambah Work
-                </PrimaryButton>
-            </PageHeader>
+            <Head title={`Works ${labelJenis[jenis]}`} />
 
-            <div className="mt-6">
+            <PageHeader
+                judul="Works"
+                catatan={CATATAN[jenis]}
+                aksi={
+                    <Link href={`/admin/works/create?jenis=${jenis}`}>
+                        <PrimaryButton type="button">Tambah</PrimaryButton>
+                    </Link>
+                }
+            />
+
+            <div className="mb-6 flex flex-wrap items-center gap-2">
+                {JENIS.map((j) => (
+                    <Pil key={j} href={`/admin/works?jenis=${j}`} aktif={j === jenis}>
+                        {labelJenis[j]}
+                    </Pil>
+                ))}
+            </div>
+
+            {works.length === 0 ? (
+                <EmptyState
+                    judul={`Belum ada ${labelJenis[jenis].toLowerCase()}`}
+                    catatan={CATATAN[jenis]}
+                    aksi={
+                        <Link href={`/admin/works/create?jenis=${jenis}`}>
+                            <PrimaryButton type="button">Tambah sekarang</PrimaryButton>
+                        </Link>
+                    }
+                />
+            ) : (
                 <TableCard>
-                    <THead>
-                        <th className="px-4 py-3 font-medium">Judul</th>
-                        <th className="px-4 py-3 font-medium">Kategori</th>
-                        <th className="px-4 py-3 font-medium">Foto</th>
-                        <th className="px-4 py-3 font-medium">Di Landing</th>
-                        <th className="px-4 py-3 text-right font-medium">Aksi</th>
-                    </THead>
+                    <THead kolom={kolom} />
                     <tbody>
-                        {works.map((work) => (
-                            <tr key={work.id} className="border-b border-line last:border-0">
+                        {works.map((w) => (
+                            <tr key={w.id} className="border-b border-line last:border-0">
                                 <td className="px-4 py-3">
-                                    <div className="font-medium text-ink">{work.judul}</div>
-                                    <div className="text-xs text-muted">/{work.slug}</div>
+                                    <Thumb
+                                        src={w.thumb}
+                                        alt={w.judul ?? ''}
+                                        ratio={slideshow ? 'aspect-video' : horizontal ? 'aspect-[3/4]' : 'aspect-square'}
+                                    />
                                 </td>
-                                <td className="px-4 py-3 text-muted">{work.category.nama}</td>
-                                <td className="px-4 py-3 text-muted">{work.photos_count}</td>
+
+                                {!slideshow ? (
+                                    <>
+                                        <td className="px-4 py-3 text-ink">{w.judul}</td>
+                                        <td className="px-4 py-3 text-muted">{w.lokasi}</td>
+                                        <td className="px-4 py-3 text-muted">{w.kategori ?? 'Belum diisi'}</td>
+                                    </>
+                                ) : null}
+
+                                {horizontal ? <td className="px-4 py-3 text-muted capitalize">{w.ukuran}</td> : null}
+
+                                <td className="px-4 py-3 text-muted">{w.urutan}</td>
+
+                                {!slideshow ? (
+                                    <td className="px-4 py-3">
+                                        <Badge ok={w.punya_cover}>
+                                            {w.punya_cover ? `${w.jumlah_zigzag} foto zigzag` : 'Belum ada cover'}
+                                        </Badge>
+                                    </td>
+                                ) : null}
+
                                 <td className="px-4 py-3">
-                                    {work.show_on_landing ? (
-                                        <span className="rounded-full bg-[#EDF3EC] px-2 py-1 text-xs tracking-wide text-[#346538]">
-                                            Ya
-                                        </span>
-                                    ) : (
-                                        <span className="rounded-full bg-bone px-2 py-1 text-xs tracking-wide text-muted">
-                                            Tidak
-                                        </span>
-                                    )}
-                                </td>
-                                <td className="px-4 py-3 text-right">
-                                    <Link
-                                        href={`/admin/works/${work.id}/photos`}
-                                        className="mr-3 text-ink underline"
-                                    >
-                                        Foto
-                                    </Link>
-                                    <Link
-                                        href={`/admin/works/${work.id}/edit`}
-                                        className="mr-3 text-ink underline"
-                                    >
-                                        Ubah
-                                    </Link>
-                                    <button
-                                        onClick={() => setTarget(work)}
-                                        className="text-red-700 underline"
-                                    >
-                                        Hapus
-                                    </button>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {!slideshow ? <LinkButton href={`/admin/works/${w.id}/detail`}>Foto</LinkButton> : null}
+                                        <LinkButton href={`/admin/works/${w.id}/edit`}>Ubah</LinkButton>
+                                        <button
+                                            type="button"
+                                            onClick={() => hapus(w)}
+                                            className="rounded-lg border border-red-200 px-3 py-1.5 text-[11px] uppercase tracking-[0.14em] text-red-700 transition-colors duration-150 hover:border-red-400"
+                                        >
+                                            Hapus
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}
                     </tbody>
                 </TableCard>
-                {works.length === 0 && <EmptyState>Belum ada work. Tambahkan yang pertama.</EmptyState>}
-            </div>
-
-            <ConfirmModal
-                open={target !== null}
-                judul="Hapus Work"
-                pesan={`Yakin ingin menghapus work "${target?.judul}"? Semua foto di dalamnya ikut terhapus.`}
-                onConfirm={hapus}
-                onClose={() => setTarget(null)}
-            />
+            )}
         </AdminLayout>
-    );
+    )
 }

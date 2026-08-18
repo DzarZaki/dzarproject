@@ -1,160 +1,152 @@
-import { Card, Field, PageHeader, PrimaryButton, TextInput } from '@/Components/Admin/ui';
-import ConfirmModal from '@/Components/ConfirmModal';
-import AdminLayout from '@/Layouts/AdminLayout';
-import { router, useForm } from '@inertiajs/react';
-import { useState } from 'react';
+import { Head, useForm } from '@inertiajs/react'
+import AdminLayout from '@/Layouts/AdminLayout'
+import { AreaInput, Card, Field, FileInput, PageHeader, PrimaryButton, TextInput } from '@/Components/Admin/ui'
 
-export default function Edit({ about, fotos }) {
-    const [target, setTarget] = useState(null);
+export default function AboutEdit({ about }) {
+    const form = useForm({
+        label: about.label ?? 'About Us',
+        judul: about.judul ?? '',
+        paragraf_1: about.paragraf_1 ?? '',
+        paragraf_2: about.paragraf_2 ?? '',
+        foto_portrait: null,
+        foto_full: null,
+        foto_pita: null,
+    })
 
-    const konten = useForm({
-        judul: about.judul,
-        teks: about.teks ?? '',
-        foto: null,
-    });
-
-    const galeri = useForm({ foto: [] });
-
-    function simpanKonten(e) {
-        e.preventDefault();
-        konten.transform((data) => ({ ...data, _method: 'put' })).post('/admin/about', {
-            forceFormData: true,
-        });
-    }
-
-    function submitGaleri(e) {
-        e.preventDefault();
-        galeri.post('/admin/about/photos', {
-            forceFormData: true,
-            onSuccess: () => galeri.reset(),
-        });
-    }
-
-    function ubahUrutan(foto, urutan) {
-        router.patch(`/admin/about/photos/${foto.id}`, { urutan: Number(urutan) });
-    }
-
-    function hapus() {
-        router.delete(`/admin/about/photos/${target.id}`, {
-            onFinish: () => setTarget(null),
-        });
+    const kirim = (e) => {
+        e.preventDefault()
+        form.post('/admin/about', { forceFormData: true, preserveScroll: true })
     }
 
     return (
         <AdminLayout>
+            <Head title="About" />
+
             <PageHeader
                 judul="Halaman About"
-                deskripsi="Konten halaman /about publik: teks singkat, foto portrait, dan galeri foto."
+                catatan="Halaman About punya dua bagian: baris tiga kolom di atas, lalu satu foto lebar selebar layar. Di bawahnya ada satu foto khusus untuk landing page."
             />
 
-            <Card className="mt-6 p-6">
-                <form onSubmit={simpanKonten} className="space-y-4">
-                    <Field label="Judul" error={konten.errors.judul}>
-                        <TextInput
-                            type="text"
-                            value={konten.data.judul}
-                            onChange={(e) => konten.setData('judul', e.target.value)}
-                        />
-                    </Field>
+            <form onSubmit={kirim} className="grid gap-6 lg:grid-cols-2">
+                <Card>
+                    <h2 className="mb-5 text-[11px] uppercase tracking-[0.14em] text-muted">Bagian satu</h2>
 
-                    <Field label="Teks singkat" error={konten.errors.teks}>
-                        <textarea
-                            rows="5"
-                            value={konten.data.teks}
-                            onChange={(e) => konten.setData('teks', e.target.value)}
-                            className="w-full rounded-md border border-line px-3 py-2 text-sm transition-colors duration-150 focus:border-ink focus:outline-none"
-                            placeholder="Ceritakan tentang DzarProject secara singkat dan jujur…"
-                        />
-                    </Field>
+                    <div className="space-y-5">
+                        <Field label="Label kecil" wajib error={form.errors.label} petunjuk="Tampil kecil di kiri atas.">
+                            <TextInput value={form.data.label} onChange={(e) => form.setData('label', e.target.value)} />
+                        </Field>
 
-                    <Field
-                        label="Foto portrait (tampil kecil di kanan, seperti pas foto)"
-                        error={konten.errors.foto}
-                        hint="Kosongkan kalau tidak ingin mengganti foto."
-                    >
-                        <div className="flex items-center gap-4">
-                            {about.foto_path && (
-                                <img
-                                    src={`/storage/${about.foto_path}`}
-                                    alt="Foto portrait saat ini"
-                                    className="aspect-[3/4] w-20 rounded-md border border-line object-cover"
-                                />
-                            )}
-                            <input
-                                type="file"
+                        <Field label="Judul section" wajib error={form.errors.judul}>
+                            <TextInput value={form.data.judul} onChange={(e) => form.setData('judul', e.target.value)} />
+                        </Field>
+
+                        <Field label="Paragraf pertama" wajib error={form.errors.paragraf_1}>
+                            <AreaInput
+                                rows={6}
+                                value={form.data.paragraf_1}
+                                onChange={(e) => form.setData('paragraf_1', e.target.value)}
+                            />
+                        </Field>
+
+                        <Field label="Paragraf kedua" error={form.errors.paragraf_2} petunjuk="Opsional.">
+                            <AreaInput
+                                rows={6}
+                                value={form.data.paragraf_2 ?? ''}
+                                onChange={(e) => form.setData('paragraf_2', e.target.value)}
+                            />
+                        </Field>
+                    </div>
+                </Card>
+
+                <div className="space-y-6">
+                    <Card>
+                        <h2 className="mb-5 text-[11px] uppercase tracking-[0.14em] text-muted">Foto portrait kecil</h2>
+
+                        {about.portrait_url ? (
+                            <div className="mb-4 w-36 overflow-hidden rounded-md border border-line bg-bone">
+                                <img src={about.portrait_url} alt="" className="aspect-[4/5] w-full object-cover" />
+                            </div>
+                        ) : (
+                            <div className="mb-4 aspect-[4/5] w-36 rounded-md border border-dashed border-line bg-bone" />
+                        )}
+
+                        <Field
+                            label="Ganti foto portrait"
+                            error={form.errors.foto_portrait}
+                            petunjuk="Perbandingan sisi kira kira 4:5. Tampil di halaman About."
+                        >
+                            <FileInput
                                 accept="image/jpeg,image/png,image/webp"
-                                onChange={(e) => konten.setData('foto', e.target.files[0])}
-                                className="block w-full text-sm text-muted"
+                                onChange={(e) => form.setData('foto_portrait', e.target.files?.[0] ?? null)}
                             />
-                        </div>
-                    </Field>
-
-                    <PrimaryButton type="submit" disabled={konten.processing}>
-                        {konten.processing ? 'Menyimpan…' : 'Simpan Konten'}
-                    </PrimaryButton>
-                </form>
-            </Card>
-
-            <div className="mt-10">
-                <PageHeader judul="Galeri Foto" deskripsi="Tampil berderet di bawah teks halaman About." />
-            </div>
-
-            <Card className="mt-4 p-6">
-                <form onSubmit={submitGaleri}>
-                    <input
-                        type="file"
-                        multiple
-                        accept="image/jpeg,image/png,image/webp"
-                        onChange={(e) => galeri.setData('foto', Array.from(e.target.files))}
-                        className="block w-full text-sm text-muted"
-                    />
-                    {galeri.errors.foto && <p className="mt-1 text-sm text-red-700">{galeri.errors.foto}</p>}
-                    <PrimaryButton
-                        type="submit"
-                        disabled={galeri.processing || galeri.data.foto.length === 0}
-                        className="mt-4"
-                    >
-                        {galeri.processing ? 'Mengunggah…' : 'Unggah Foto'}
-                    </PrimaryButton>
-                </form>
-            </Card>
-
-            <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-                {fotos.map((foto) => (
-                    <Card key={foto.id} className="overflow-hidden">
-                        <img
-                            src={`/storage/${foto.thumb_path ?? foto.file_path}`}
-                            alt=""
-                            loading="lazy"
-                            className="aspect-square w-full object-cover"
-                        />
-                        <div className="flex items-center justify-between gap-2 p-3">
-                            <input
-                                type="number"
-                                min="0"
-                                defaultValue={foto.urutan}
-                                onBlur={(e) => ubahUrutan(foto, e.target.value)}
-                                className="w-16 rounded-md border border-line px-2 py-1 text-xs focus:border-ink focus:outline-none"
-                                title="Urutan tampil"
-                            />
-                            <button
-                                onClick={() => setTarget(foto)}
-                                className="text-xs text-red-700 underline"
-                            >
-                                Hapus
-                            </button>
-                        </div>
+                        </Field>
                     </Card>
-                ))}
-            </div>
 
-            <ConfirmModal
-                open={target !== null}
-                judul="Hapus Foto"
-                pesan="Yakin ingin menghapus foto ini dari halaman About? File fisiknya juga dihapus."
-                onConfirm={hapus}
-                onClose={() => setTarget(null)}
-            />
+                    <Card>
+                        <h2 className="mb-5 text-[11px] uppercase tracking-[0.14em] text-muted">Foto lebar bagian dua</h2>
+
+                        {about.full_url ? (
+                            <div className="mb-4 overflow-hidden rounded-md border border-line bg-bone">
+                                <img src={about.full_url} alt="" className="aspect-[16/7] w-full object-cover grayscale" />
+                            </div>
+                        ) : (
+                            <div className="mb-4 aspect-[16/7] w-full rounded-md border border-dashed border-line bg-bone" />
+                        )}
+
+                        <Field
+                            label="Ganti foto lebar"
+                            error={form.errors.foto_full}
+                            petunjuk="Foto lanskap resolusi besar. Tampil hitam putih selebar layar di halaman About."
+                        >
+                            <FileInput
+                                accept="image/jpeg,image/png,image/webp"
+                                onChange={(e) => form.setData('foto_full', e.target.files?.[0] ?? null)}
+                            />
+                        </Field>
+                    </Card>
+
+                    <Card>
+                        <h2 className="mb-2 text-[11px] uppercase tracking-[0.14em] text-muted">
+                            Foto memanjang untuk landing page
+                        </h2>
+
+                        <p className="mb-5 text-xs leading-relaxed text-muted">
+                            Foto ini tidak tampil di halaman About. Tempatnya di halaman depan, tepat di antara bagian
+                            kategori dan bagian video, ditampilkan hitam putih selebar layar. Pakai foto lanskap yang
+                            sangat lebar supaya bagian atas dan bawahnya tidak terpotong banyak.
+                        </p>
+
+                        {about.pita_url ? (
+                            <div className="mb-4 overflow-hidden rounded-md border border-line bg-bone">
+                                <img src={about.pita_url} alt="" className="aspect-[21/9] w-full object-cover grayscale" />
+                            </div>
+                        ) : (
+                            <div className="mb-4 aspect-[21/9] w-full rounded-md border border-dashed border-line bg-bone" />
+                        )}
+
+                        <Field
+                            label="Ganti foto memanjang landing page"
+                            error={form.errors.foto_pita}
+                            petunjuk="Perbandingan sisi paling cocok sekitar 21:9. Kalau dibiarkan kosong, bagian ini tidak muncul di landing page."
+                        >
+                            <FileInput
+                                accept="image/jpeg,image/png,image/webp"
+                                onChange={(e) => form.setData('foto_pita', e.target.files?.[0] ?? null)}
+                            />
+                        </Field>
+                    </Card>
+
+                    {form.progress ? (
+                        <div className="h-0.5 w-full overflow-hidden rounded bg-line">
+                            <div className="h-full bg-ink transition-all" style={{ width: `${form.progress.percentage}%` }} />
+                        </div>
+                    ) : null}
+
+                    <PrimaryButton type="submit" disabled={form.processing}>
+                        {form.processing ? 'Menyimpan' : 'Simpan halaman About'}
+                    </PrimaryButton>
+                </div>
+            </form>
         </AdminLayout>
-    );
+    )
 }

@@ -2,63 +2,107 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\About;
+use App\Models\Category;
 use App\Models\Video;
 use App\Models\Work;
+use Illuminate\Http\Response as HttpResponse;
 use Inertia\Inertia;
-use App\Models\About;
-use App\Models\AboutPhoto;
+use Inertia\Response;
 
 class HomeController extends Controller
 {
-    public function index()
+    public function index(): Response
     {
-        $works = Work::where('show_on_landing', true)
-            ->with(['photos' => fn ($q) => $q->orderBy('urutan')])
-            ->orderBy('urutan')
-            ->get();
+        // 1. Slide show full screen
+        $slides = Work::jenis(Work::JENIS_SLIDESHOW)
+            ->with('fotoSlideshow')
+            ->urut()
+            ->get()
+            ->filter(fn (Work $w) => $w->fotoSlideshow !== null)
+            ->map(fn (Work $w) => [
+                'id' => $w->id,
+                'url' => $w->fotoSlideshow->url,
+                'thumb' => $w->fotoSlideshow->thumb_url,
+            ])
+            ->values();
 
-        $hero = [];
-        $tipografi = [];
-        $strip = [];
+        // 2. Strip foto horizontal
+        $horizontal = Work::jenis(Work::JENIS_HORIZONTAL)
+            ->with(['fotoThumb', 'category'])
+            ->urut()
+            ->get()
+            ->filter(fn (Work $w) => $w->fotoThumb !== null)
+            ->map(fn (Work $w) => [
+                'id' => $w->id,
+                'judul' => $w->judul,
+                'lokasi' => $w->lokasi,
+                'kategori' => $w->category?->nama,
+                'ukuran' => $w->ukuran ?? 'sedang',
+                'url' => $w->fotoThumb->url,
+                'thumb' => $w->fotoThumb->thumb_url,
+                'link' => $w->slug ? route('works.show', $w->slug) : null,
+            ])
+            ->values();
 
-        foreach ($works as $work) {
-            foreach ($work->photos as $photo) {
-                $foto = [
-                    'id' => $photo->id,
-                    'url' => '/storage/'.$photo->file_path,
-                    'work_judul' => $work->judul,
-                    'work_slug' => $work->slug,
-                ];
+        // 3. Carousel 3D kategori
+        $kategori = Category::urut()
+            ->withCount(['worksTampil as jumlah'])
+            ->get()
+            ->map(fn (Category $c) => [
+                'id' => $c->id,
+                'nama' => $c->nama,
+                'slug' => $c->slug,
+                'thumb_url' => $c->thumb_url,
+                'jumlah' => $c->jumlah,
+                'link' => route('works.index', ['kategori' => $c->slug]),
+            ])
+            ->values();
 
-                match ($photo->peran) {
-                    'cover' => $hero[] = $foto,
-                    'landing_typography' => $tipografi[] = $foto,
-                    'landing_strip' => $strip[] = $foto,
-                    default => null,
-                };
-            }
-        }
+        // 4. Foto memanjang hitam putih, diatur dari form About
+        $pita = About::singleton()->pita_url;
+
+        // 5. Video
+        $videos = Video::orderBy('urutan')->orderBy('id')->get()
+            ->map(fn (Video $v) => [
+                'id' => $v->id,
+                'judul' => $v->judul,
+                'embed_url' => $v->embed_url,
+            ])
+            ->filter(fn (array $v) => $v['embed_url'] !== null)
+            ->values();
 
         return Inertia::render('Home', [
-            'heroPhotos' => $hero,
-            'tipografiPhotos' => $tipografi,
-            'stripPhotos' => $strip,
-            'videos' => Video::orderBy('urutan')->get(['id', 'judul', 'youtube_url', 'urutan']),
+            'slides' => $slides,
+            'horizontal' => $horizontal,
+            'kategori' => $kategori,
+            'pita' => $pita,
+            'videos' => $videos,
         ]);
     }
 
-    public function about()
-{
-    $about = About::singleton();
+    public function sitemap(): HttpResponse
+    {
+        $tautan = [
+            route('home'),
+            route('about'),
+            route('works.index'),
+            route('contact.index'),
+        ];
 
-    return Inertia::render('About', [
-        'about' => [
-            'judul' => $about->judul,
-            'teks' => $about->teks,
-            'foto_url' => $about->foto_path ? '/storage/'.$about->foto_path : null,
-        ],
-        'fotos' => AboutPhoto::orderBy('urutan')->get()
-            ->map(fn ($p) => ['id' => $p->id, 'url' => '/storage/'.$p->file_path]),
-    ]);
-}
+        foreach (Work::whereNot('jenis', Work::JENIS_SLIDESHOW)->whereNotNull('slug')->pluck('slug') as $slug) {
+            $tautan[] = route('works.show', $slug);
+        }
+
+        $isi = '<?xml version="1.0" encoding="UTF-8"?>'."\n";
+        $isi .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'."\n";
+
+        foreach ($tautan as $url) {
+            $isi .= '  <url><loc>'.e($url).'</loc></url>'."\n";
+        }
+
+        $isi .= '</urlset>';
+
+        return response($isi, 200, ['Content-Type' => 'application/xml']);
+    }
 }

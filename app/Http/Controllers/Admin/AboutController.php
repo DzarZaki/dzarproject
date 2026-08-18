@@ -4,97 +4,86 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\About;
-use App\Models\AboutPhoto;
 use App\Services\PhotoService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class AboutController extends Controller
 {
-    public function __construct(private PhotoService $photos) {}
+    public function __construct(private readonly PhotoService $foto) {}
 
-    public function edit()
+    public function edit(): Response
     {
+        $about = About::singleton();
+
         return Inertia::render('Admin/About/Edit', [
-            'about' => About::singleton(),
-            'fotos' => AboutPhoto::orderBy('urutan')->get(),
+            'about' => [
+                'label' => $about->label,
+                'judul' => $about->judul,
+                'paragraf_1' => $about->paragraf_1,
+                'paragraf_2' => $about->paragraf_2,
+                'portrait_url' => $about->portrait_url,
+                'full_url' => $about->full_url,
+                'pita_url' => $about->pita_url,
+            ],
         ]);
     }
 
-    public function update(Request $request)
+    public function update(Request $request): RedirectResponse
     {
+        $about = About::singleton();
+
         $data = $request->validate([
-            'judul' => ['required', 'string', 'max:150'],
-            'teks' => ['required', 'string', 'max:2000'],
-            'foto' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+            'label' => ['required', 'string', 'max:40'],
+            'judul' => ['required', 'string', 'max:120'],
+            'paragraf_1' => ['required', 'string', 'max:1500'],
+            'paragraf_2' => ['nullable', 'string', 'max:1500'],
+            'foto_portrait' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:12288'],
+            'foto_full' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:12288'],
+            'foto_pita' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:12288'],
         ], [
-            'judul.required' => 'Judul wajib diisi.',
-            'judul.max' => 'Judul maksimal 150 karakter.',
-            'teks.required' => 'Teks tentang wajib diisi.',
-            'teks.max' => 'Teks maksimal 2000 karakter.',
-            'foto.image' => 'File harus berupa gambar.',
-            'foto.mimes' => 'Format yang didukung: JPG, PNG, WebP.',
-            'foto.max' => 'Ukuran foto maksimal 10 MB.',
+            'label.required' => 'Label kecil wajib diisi.',
+            'judul.required' => 'Judul section wajib diisi.',
+            'paragraf_1.required' => 'Paragraf pertama wajib diisi.',
+            'foto_portrait.image' => 'Foto portrait harus berupa gambar.',
+            'foto_full.image' => 'Foto lebar harus berupa gambar.',
+            'foto_pita.image' => 'Foto memanjang landing page harus berupa gambar.',
+            'foto_pita.mimes' => 'Foto memanjang landing page harus JPG, PNG, atau WebP.',
+            'foto_pita.max' => 'Foto memanjang landing page maksimal 12 MB.',
         ]);
 
-        $about = About::singleton();
-        $about->judul = $data['judul'];
-        $about->teks = $data['teks'];
+        $about->fill([
+            'label' => $data['label'],
+            'judul' => $data['judul'],
+            'paragraf_1' => $data['paragraf_1'],
+            'paragraf_2' => $data['paragraf_2'] ?? null,
+        ]);
 
-        // Ganti foto portrait? Hapus file lama, simpan yang baru.
-        if ($request->hasFile('foto')) {
-            $this->photos->hapusFile($about->foto_path);
-            $paths = $this->photos->prosesFile($request->file('foto')->getRealPath(), 'about');
-            $about->foto_path = $paths['file_path'];
+        if ($request->hasFile('foto_portrait')) {
+            $this->foto->hapusFile($about->foto_portrait_path, $about->foto_portrait_thumb);
+            $paths = $this->foto->simpanKeFolder($request->file('foto_portrait'), 'about', 1200, 600);
+            $about->foto_portrait_path = $paths['file_path'];
+            $about->foto_portrait_thumb = $paths['thumb_path'];
+        }
+
+        if ($request->hasFile('foto_full')) {
+            $this->foto->hapusFile($about->foto_full_path, $about->foto_full_thumb);
+            $paths = $this->foto->simpanKeFolder($request->file('foto_full'), 'about', 2600, 900);
+            $about->foto_full_path = $paths['file_path'];
+            $about->foto_full_thumb = $paths['thumb_path'];
+        }
+
+        if ($request->hasFile('foto_pita')) {
+            $this->foto->hapusFile($about->foto_pita_path, $about->foto_pita_thumb);
+            $paths = $this->foto->simpanKeFolder($request->file('foto_pita'), 'landing', 2800, 900);
+            $about->foto_pita_path = $paths['file_path'];
+            $about->foto_pita_thumb = $paths['thumb_path'];
         }
 
         $about->save();
 
-        return back();
-    }
-
-    public function storePhoto(Request $request)
-    {
-        $request->validate([
-            'foto' => ['required', 'array', 'min:1', 'max:20'],
-            'foto.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
-        ], [
-            'foto.required' => 'Pilih minimal satu foto.',
-            'foto.max' => 'Maksimal 20 foto sekali upload.',
-            'foto.*.image' => 'File harus berupa gambar.',
-            'foto.*.mimes' => 'Format yang didukung: JPG, PNG, WebP.',
-            'foto.*.max' => 'Ukuran tiap foto maksimal 10 MB.',
-        ]);
-
-        $urutan = AboutPhoto::max('urutan') ?? 0;
-
-        foreach ($request->file('foto') as $file) {
-            $paths = $this->photos->prosesFile($file->getRealPath(), 'about');
-            AboutPhoto::create([...$paths, 'urutan' => ++$urutan]);
-        }
-
-        return back();
-    }
-
-    public function updatePhoto(Request $request, AboutPhoto $aboutPhoto)
-    {
-        $data = $request->validate([
-            'urutan' => ['required', 'integer', 'min:0'],
-        ], [
-            'urutan.required' => 'Urutan wajib diisi.',
-            'urutan.integer' => 'Urutan harus berupa angka.',
-        ]);
-
-        $aboutPhoto->update($data);
-
-        return back();
-    }
-
-    public function destroyPhoto(AboutPhoto $aboutPhoto)
-    {
-        $this->photos->hapusFile($aboutPhoto->file_path, $aboutPhoto->thumb_path);
-        $aboutPhoto->delete();
-
-        return back();
+        return back()->with('sukses', 'Halaman About disimpan.');
     }
 }

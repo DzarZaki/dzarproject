@@ -6,6 +6,8 @@ use App\Models\Category;
 use App\Models\User;
 use App\Models\Work;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -39,12 +41,13 @@ class CategoryTest extends TestCase
     public function test_admin_bisa_menambah_kategori_dan_slug_otomatis(): void
     {
         $this->actingAs($this->admin())
-            ->post('/admin/categories', ['nama' => 'Foto Produk'])
+            ->post('/admin/categories', ['nama' => 'Foto Produk', 'urutan' => 2])
             ->assertRedirect(route('admin.categories.index'));
 
         $this->assertDatabaseHas('categories', [
             'nama' => 'Foto Produk',
             'slug' => 'foto-produk',
+            'urutan' => 2,
         ]);
     }
 
@@ -69,7 +72,7 @@ class CategoryTest extends TestCase
         $category = Category::create(['nama' => 'Weding', 'slug' => 'weding']);
 
         $this->actingAs($this->admin())
-            ->put("/admin/categories/{$category->id}", ['nama' => 'Wedding'])
+            ->put("/admin/categories/{$category->id}", ['nama' => 'Wedding', 'urutan' => 0])
             ->assertRedirect(route('admin.categories.index'));
 
         $this->assertDatabaseHas('categories', [
@@ -77,6 +80,32 @@ class CategoryTest extends TestCase
             'nama' => 'Wedding',
             'slug' => 'wedding',
         ]);
+    }
+
+    public function test_admin_bisa_mengunggah_dan_menghapus_foto_kategori(): void
+    {
+        Storage::fake('public');
+        $category = Category::create(['nama' => 'Wisuda', 'slug' => 'wisuda']);
+
+        $this->actingAs($this->admin())
+            ->post("/admin/categories/{$category->id}/foto", [
+                'foto' => UploadedFile::fake()->image('kategori.jpg', 1600, 900),
+            ])
+            ->assertRedirect();
+
+        $category->refresh();
+        $this->assertNotNull($category->file_path);
+        $this->assertStringEndsWith('.webp', $category->file_path);
+        Storage::disk('public')->assertExists($category->file_path);
+
+        $lama = $category->file_path;
+
+        $this->actingAs($this->admin())
+            ->delete("/admin/categories/{$category->id}/foto")
+            ->assertRedirect();
+
+        $this->assertNull($category->fresh()->file_path);
+        Storage::disk('public')->assertMissing($lama);
     }
 
     public function test_kategori_tanpa_work_bisa_dihapus(): void

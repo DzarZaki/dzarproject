@@ -1,86 +1,61 @@
-import { Card, Field, PageHeader, PrimaryButton, TextInput } from '@/Components/Admin/ui';
-import AdminLayout from '@/Layouts/AdminLayout';
-import { Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react'
+import AdminLayout from '@/Layouts/AdminLayout'
+import { Card, Field, GhostButton, PageHeader, PrimaryButton, TextInput } from '@/Components/Admin/ui'
 
-function embedUrl(url) {
-    const m = url?.match(
-        /(?:youtube\.com\/(?:watch\?.*v=|shorts\/|embed\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
-    );
-    return m ? `{{https://www.youtube.com/embed/${m[1]}` : null;
-}
+export default function VideoCreate({ urutanBerikutnya }) {
+    const form = useForm({ judul: '', youtube_url: '', urutan: urutanBerikutnya })
 
-export default function Create() {
-    const { data, setData, post, processing, errors } = useForm({
-        judul: '',
-        youtube_url: '',
-        urutan: 0,
-    });
-
-    const preview = embedUrl(data.youtube_url);
-
-    function submit(e) {
-        e.preventDefault();
-        post('/admin/videos');
+    const kirim = (e) => {
+        e.preventDefault()
+        form.post('/admin/videos')
     }
 
     return (
         <AdminLayout>
-            <div className="max-w-xl">
-                <PageHeader judul="Tambah Video" deskripsi="Link watch, youtu.be, shorts, semuanya bisa." />
+            <Head title="Tambah video" />
 
-                <Card className="mt-6 p-6">
-                    <form onSubmit={submit} className="space-y-4">
-                        <Field label="Judul (opsional)" error={errors.judul}>
-                            <TextInput
-                                type="text"
-                                value={data.judul}
-                                onChange={(e) => setData('judul', e.target.value)}
-                                placeholder="Contoh: Film A & Z"
-                                autoFocus
-                            />
-                        </Field>
+            <PageHeader
+                judul="Tambah video"
+                aksi={
+                    <Link href="/admin/videos">
+                        <GhostButton type="button">Kembali</GhostButton>
+                    </Link>
+                }
+            />
 
-                        <Field label="Link YouTube" error={errors.youtube_url}>
-                            <TextInput
-                                type="url"
-                                value={data.youtube_url}
-                                onChange={(e) => setData('youtube_url', e.target.value)}
-                                placeholder="https://youtube.com/watch?v=…"
-                            />
-                        </Field>
+            <Card className="max-w-xl">
+                <form onSubmit={kirim} className="space-y-5">
+                    <Field label="Judul" error={form.errors.judul} petunjuk="Opsional, hanya dipakai di halaman admin.">
+                        <TextInput value={form.data.judul} onChange={(e) => form.setData('judul', e.target.value)} />
+                    </Field>
 
-                        <Field label="Urutan tampil" error={errors.urutan}>
-                            <TextInput
-                                type="number"
-                                min="0"
-                                value={data.urutan}
-                                onChange={(e) => setData('urutan', Number(e.target.value))}
-                            />
-                        </Field>
+                    <Field
+                        label="Link YouTube"
+                        wajib
+                        error={form.errors.youtube_url}
+                        petunjuk="Boleh link watch, youtu.be, atau shorts."
+                    >
+                        <TextInput
+                            value={form.data.youtube_url}
+                            onChange={(e) => form.setData('youtube_url', e.target.value)}
+                            placeholder="Tempel link video di sini"
+                        />
+                    </Field>
 
-                        {preview && (
-                            <div>
-                                <p className="mb-1 text-sm text-muted">Pratinjau:</p>
-                                <iframe
-                                    src={preview}
-                                    title="Pratinjau video"
-                                    className="aspect-video w-full rounded-md border border-line"
-                                    allowFullScreen
-                                />
-                            </div>
-                        )}
+                    <Field label="Urutan tampil" error={form.errors.urutan}>
+                        <TextInput
+                            type="number"
+                            min="0"
+                            value={form.data.urutan}
+                            onChange={(e) => form.setData('urutan', e.target.value)}
+                        />
+                    </Field>
 
-                        <div className="flex items-center gap-3 pt-1">
-                            <PrimaryButton type="submit" disabled={processing}>
-                                {processing ? 'Menyimpan…' : 'Simpan'}
-                            </PrimaryButton>
-                            <Link href="/admin/videos" className="text-sm text-muted hover:text-ink">
-                                Batal
-                            </Link>
-                        </div>
-                    </form>
-                </Card>
-            </div>
+                    <PrimaryButton type="submit" disabled={form.processing}>
+                        {form.processing ? 'Menyimpan' : 'Simpan'}
+                    </PrimaryButton>
+                </form>
+            </Card>
         </AdminLayout>
-    );
+    )
 }

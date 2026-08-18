@@ -8,17 +8,21 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('about_photos', function (Blueprint $table) {
+        Schema::create('categories', function (Blueprint $table) {
             $table->id();
-            $table->string('file_path');
+            $table->string('nama');
+            $table->string('slug')->unique();
+
+            // Foto kartu kategori di carousel 3D landing page.
             $table->string('thumb_path')->nullable();
-            $table->unsignedInteger('urutan')->default(0);
+
+            $table->unsignedInteger('urutan')->default(0)->index();
             $table->timestamps();
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('about_photos');
+        Schema::dropIfExists('categories');
     }
 };

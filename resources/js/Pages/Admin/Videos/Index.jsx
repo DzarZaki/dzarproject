@@ -1,88 +1,76 @@
-import { EmptyState, PageHeader, PrimaryButton, TableCard, THead } from '@/Components/Admin/ui';
-import ConfirmModal from '@/Components/ConfirmModal';
-import AdminLayout from '@/Layouts/AdminLayout';
-import { Link, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { Head, Link, router } from '@inertiajs/react'
+import AdminLayout from '@/Layouts/AdminLayout'
+import { EmptyState, LinkButton, PageHeader, PrimaryButton, TableCard, THead } from '@/Components/Admin/ui'
 
-export default function Index({ videos }) {
-    const [target, setTarget] = useState(null);
-
-    function hapus() {
-        router.delete(`/admin/videos/${target.id}`, {
-            onFinish: () => setTarget(null),
-        });
+export default function VideosIndex({ videos }) {
+    const hapus = (v) => {
+        if (!window.confirm('Hapus video ini?')) return
+        router.delete(`/admin/videos/${v.id}`, { preserveScroll: true })
     }
 
     return (
         <AdminLayout>
-            <PageHeader judul="Videos" deskripsi="Link YouTube untuk section Videos di landing page.">
-                <PrimaryButton onClick={() => router.get('/admin/videos/create')}>
-                    + Tambah Video
-                </PrimaryButton>
-            </PageHeader>
+            <Head title="Video" />
 
-            <div className="mt-6">
+            <PageHeader
+                judul="Video"
+                catatan="Video main sendiri tanpa suara begitu pengunjung sampai ke section Videos, lalu berhenti saat digulir keluar layar."
+                aksi={
+                    <Link href="/admin/videos/create">
+                        <PrimaryButton type="button">Tambah</PrimaryButton>
+                    </Link>
+                }
+            />
+
+            {videos.length === 0 ? (
+                <EmptyState
+                    judul="Belum ada video"
+                    catatan="Tempel link YouTube untuk mengisi section Videos di landing page."
+                    aksi={
+                        <Link href="/admin/videos/create">
+                            <PrimaryButton type="button">Tambah video</PrimaryButton>
+                        </Link>
+                    }
+                />
+            ) : (
                 <TableCard>
-                    <THead>
-                        <th className="px-4 py-3 font-medium">Video</th>
-                        <th className="px-4 py-3 font-medium">Judul</th>
-                        <th className="px-4 py-3 font-medium">Urutan</th>
-                        <th className="px-4 py-3 text-right font-medium">Aksi</th>
-                    </THead>
+                    <THead kolom={['Pratinjau', 'Judul', 'Link', 'Urutan', 'Aksi']} />
                     <tbody>
-                        {videos.map((video) => {
-                            const videoId = video.embed_url?.split('/').pop();
-
-                            return (
-                                <tr key={video.id} className="border-b border-line last:border-0">
-                                    <td className="px-4 py-3">
-                                        {videoId ? (
-                                            <img
-                                                src={`{{https://img.youtube.com/vi/${videoId}}}/default.jpg`}
-                                                alt=""
+                        {videos.map((v) => (
+                            <tr key={v.id} className="border-b border-line last:border-0">
+                                <td className="px-4 py-3">
+                                    <div className="aspect-video w-32 overflow-hidden rounded-md border border-line bg-bone">
+                                        {v.embed_url ? (
+                                            <iframe
+                                                src={v.embed_url}
+                                                title={v.judul ?? 'Video'}
                                                 loading="lazy"
-                                                className="h-12 w-20 rounded-sm border border-line object-cover"
+                                                className="h-full w-full"
+                                                allow="encrypted-media; picture-in-picture"
                                             />
-                                        ) : (
-                                            <span className="text-xs text-red-700">Link tidak dikenali</span>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <div className="font-medium text-ink">{video.judul || '(tanpa judul)'}</div>
-                                        <div className="max-w-xs truncate text-xs text-muted">
-                                            {video.youtube_url}
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3 text-muted">{video.urutan}</td>
-                                    <td className="px-4 py-3 text-right">
-                                        <Link
-                                            href={`/admin/videos/${video.id}/edit`}
-                                            className="mr-3 text-ink underline"
-                                        >
-                                            Ubah
-                                        </Link>
+                                        ) : null}
+                                    </div>
+                                </td>
+                                <td className="px-4 py-3 text-ink">{v.judul ?? 'Tanpa judul'}</td>
+                                <td className="max-w-xs truncate px-4 py-3 text-muted">{v.youtube_url}</td>
+                                <td className="px-4 py-3 text-muted">{v.urutan}</td>
+                                <td className="px-4 py-3">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <LinkButton href={`/admin/videos/${v.id}/edit`}>Ubah</LinkButton>
                                         <button
-                                            onClick={() => setTarget(video)}
-                                            className="text-red-700 underline"
+                                            type="button"
+                                            onClick={() => hapus(v)}
+                                            className="rounded-lg border border-red-200 px-3 py-1.5 text-[11px] uppercase tracking-[0.14em] text-red-700 transition-colors duration-150 hover:border-red-400"
                                         >
                                             Hapus
                                         </button>
-                                    </td>
-                                </tr>
-                            );
-                        })}
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
                     </tbody>
                 </TableCard>
-                {videos.length === 0 && <EmptyState>Belum ada video. Tambahkan link YouTube pertama.</EmptyState>}
-            </div>
-
-            <ConfirmModal
-                open={target !== null}
-                judul="Hapus Video"
-                pesan={`Yakin ingin menghapus video "${target?.judul || target?.youtube_url}" dari landing page?`}
-                onConfirm={hapus}
-                onClose={() => setTarget(null)}
-            />
+            )}
         </AdminLayout>
-    );
+    )
 }

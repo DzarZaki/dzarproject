@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\Category;
+use App\Models\Photo;
 use App\Models\User;
 use App\Models\Work;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -49,14 +50,27 @@ class WorkTest extends TestCase
             'judul' => 'A & Z',
             'category_id' => $kategori->id,
             'lokasi' => 'Jakarta',
-            'show_on_landing' => true,
-        ])->assertRedirect(route('admin.works.index'));
+            'urutan' => 0,
+        ])->assertRedirect();
 
         $this->assertDatabaseHas('works', [
             'judul' => 'A & Z',
             'slug' => 'a-z',
-            'show_on_landing' => true,
+            'lokasi' => 'Jakarta',
         ]);
+    }
+
+    public function test_setelah_menambah_work_diarahkan_ke_halaman_foto(): void
+    {
+        $kategori = $this->kategori();
+
+        $response = $this->actingAs($this->admin())->post('/admin/works', [
+            'judul' => 'A & Z',
+            'category_id' => $kategori->id,
+        ]);
+
+        $work = Work::where('slug', 'a-z')->firstOrFail();
+        $response->assertRedirect("/admin/works/{$work->id}/photos");
     }
 
     public function test_slug_tidak_tabrakan_saat_judul_sama(): void
@@ -87,7 +101,7 @@ class WorkTest extends TestCase
         $this->actingAs($this->admin())->put("/admin/works/{$work->id}", [
             'judul' => 'A & Z Wedding',
             'category_id' => $kategori->id,
-            'show_on_landing' => false,
+            'urutan' => 0,
         ])->assertRedirect(route('admin.works.index'));
 
         $this->assertDatabaseHas('works', [
@@ -101,7 +115,14 @@ class WorkTest extends TestCase
     {
         $kategori = $this->kategori();
         $work = Work::create(['category_id' => $kategori->id, 'judul' => 'A & Z', 'slug' => 'a-z']);
-        $work->photos()->create(['file_path' => 'works/a-z/detail-01.webp', 'peran' => 'detail']);
+
+        $photo = new Photo;
+        $photo->forceFill([
+            'work_id' => $work->id,
+            'file_path' => 'works/a-z/detail-01.webp',
+            'penempatan' => 'detail',
+            'urutan' => 0,
+        ])->save();
 
         $this->actingAs($this->admin())
             ->delete("/admin/works/{$work->id}")

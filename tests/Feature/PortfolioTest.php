@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\Category;
+use App\Models\Photo;
 use App\Models\Work;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -14,7 +16,20 @@ class PortfolioTest extends TestCase
 
     private function kategori(string $nama): Category
     {
-        return Category::create(['nama' => $nama, 'slug' => \Illuminate\Support\Str::slug($nama)]);
+        return Category::create(['nama' => $nama, 'slug' => Str::slug($nama)]);
+    }
+
+    private function foto(Work $work, string $penempatan, int $urutan = 0): Photo
+    {
+        $photo = new Photo;
+        $photo->forceFill([
+            'work_id' => $work->id,
+            'file_path' => "works/{$work->id}/{$penempatan}-".uniqid().'.webp',
+            'penempatan' => $penempatan,
+            'urutan' => $urutan,
+        ])->save();
+
+        return $photo;
     }
 
     public function test_halaman_works_menampilkan_semua_work(): void
@@ -28,6 +43,7 @@ class PortfolioTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Works/Index')
                 ->has('works', 2)
+                ->has('categories')
             );
     }
 
@@ -55,16 +71,18 @@ class PortfolioTest extends TestCase
             'slug' => 'a-z',
             'youtube_url' => 'https://youtu.be/dQw4w9WgXcQ',
         ]);
-        $work->photos()->create(['file_path' => 'works/1/cover.webp', 'peran' => 'cover']);
-        $work->photos()->create(['file_path' => 'works/1/d1.webp', 'peran' => 'detail', 'urutan' => 1]);
-        $work->photos()->create(['file_path' => 'works/1/d2.webp', 'peran' => 'detail', 'urutan' => 2]);
+
+        $this->foto($work, 'cover');
+        $this->foto($work, 'detail', 1);
+        $this->foto($work, 'detail', 2);
+        $this->foto($work, 'slideshow'); // slot landing, tidak masuk galeri detail
 
         $this->get('/works/a-z')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Works/Show')
                 ->where('work.judul', 'A & Z')
-                ->has('work.fotos', 2)          // cover tidak ikut ke zig-zag
+                ->has('work.fotos', 2)
                 ->where('work.embed_url', 'https://www.youtube.com/embed/dQw4w9WgXcQ')
             );
     }

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\Category;
+use App\Models\Photo;
 use App\Models\User;
 use App\Models\Work;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,11 +28,33 @@ class PhotoTest extends TestCase
         return Work::create(['category_id' => $kategori->id, 'judul' => 'A & Z', 'slug' => 'a-z']);
     }
 
+    private function foto(Work $work, string $penempatan, array $extra = []): Photo
+    {
+        $photo = new Photo;
+        $photo->forceFill(array_merge([
+            'work_id' => $work->id,
+            'file_path' => "works/{$work->id}/{$penempatan}-".uniqid().'.webp',
+            'penempatan' => $penempatan,
+            'urutan' => 0,
+        ], $extra))->save();
+
+        return $photo;
+    }
+
     public function test_tamu_tidak_bisa_mengakses_halaman_foto(): void
     {
         $work = $this->work();
 
         $this->get("/admin/works/{$work->id}/photos")->assertRedirect('/login');
+    }
+
+    public function test_halaman_foto_mengirim_daftar_penempatan(): void
+    {
+        $work = $this->work();
+
+        $this->actingAs($this->admin())
+            ->get("/admin/works/{$work->id}/photos")
+            ->assertOk();
     }
 
     public function test_upload_foto_otomatis_menjadi_webp_plus_thumbnail(): void
@@ -40,6 +63,7 @@ class PhotoTest extends TestCase
         $work = $this->work();
 
         $this->actingAs($this->admin())->post("/admin/works/{$work->id}/photos", [
+            'penempatan' => 'detail',
             'foto' => [
                 UploadedFile::fake()->image('satu.jpg', 1200, 800),
                 UploadedFile::fake()->image('dua.png', 800, 800),
@@ -49,10 +73,34 @@ class PhotoTest extends TestCase
         $this->assertEquals(2, $work->photos()->count());
 
         $photo = $work->photos()->first();
+        $this->assertEquals('detail', $photo->penempatan);
         $this->assertStringEndsWith('.webp', $photo->file_path);
         $this->assertStringContainsString('_thumb.webp', $photo->thumb_path);
         Storage::disk('public')->assertExists($photo->file_path);
         Storage::disk('public')->assertExists($photo->thumb_path);
+    }
+
+    public function test_penempatan_wajib_dipilih_saat_upload(): void
+    {
+        Storage::fake('public');
+        $work = $this->work();
+
+        $this->actingAs($this->admin())->post("/admin/works/{$work->id}/photos", [
+            'foto' => [UploadedFile::fake()->image('satu.jpg')],
+        ])->assertSessionHasErrors('penempatan');
+
+        $this->assertEquals(0, $work->photos()->count());
+    }
+
+    public function test_penempatan_ngawur_ditolak(): void
+    {
+        Storage::fake('public');
+        $work = $this->work();
+
+        $this->actingAs($this->admin())->post("/admin/works/{$work->id}/photos", [
+            'penempatan' => 'entah',
+            'foto' => [UploadedFile::fake()->image('satu.jpg')],
+        ])->assertSessionHasErrors('penempatan');
     }
 
     public function test_upload_ditolak_jika_bukan_gambar(): void
@@ -61,6 +109,7 @@ class PhotoTest extends TestCase
         $work = $this->work();
 
         $this->actingAs($this->admin())->post("/admin/works/{$work->id}/photos", [
+            'penempatan' => 'detail',
             'foto' => [UploadedFile::fake()->create('dokumen.pdf', 100, 'application/pdf')],
         ])->assertSessionHasErrors('foto.0');
     }
@@ -76,10 +125,12 @@ class PhotoTest extends TestCase
         $work = $this->work();
 
         $this->actingAs($this->admin())->post("/admin/works/{$work->id}/photos/drive", [
+            'penempatan' => 'strip',
             'gdrive_link' => 'https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view?usp=sharing',
         ])->assertRedirect();
 
         $this->assertEquals(1, $work->photos()->count());
+        $this->assertEquals('strip', $work->photos()->first()->penempatan);
     }
 
     public function test_link_drive_rusak_menampilkan_pesan_indonesia(): void
@@ -89,6 +140,7 @@ class PhotoTest extends TestCase
         $work = $this->work();
 
         $this->actingAs($this->admin())->post("/admin/works/{$work->id}/photos/drive", [
+            'penempatan' => 'detail',
             'gdrive_link' => 'https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view',
         ])->assertSessionHasErrors('gdrive_link');
 
@@ -99,16 +151,37 @@ class PhotoTest extends TestCase
     {
         Storage::fake('public');
         $work = $this->work();
-        $a = $work->photos()->create(['file_path' => 'works/1/a.webp', 'peran' => 'cover']);
-        $b = $work->photos()->create(['file_path' => 'works/1/b.webp', 'peran' => 'detail']);
+        $a = $this->foto($work, 'cover');
+        $b = $this->foto($work, 'detail');
 
         $this->actingAs($this->admin())->patch("/admin/photos/{$b->id}", [
-            'peran' => 'cover',
+            'penempatan' => 'cover',
+            'ukuran' => 'sedang',
+            'posisi' => 'tengah',
             'urutan' => 1,
         ])->assertRedirect();
 
-        $this->assertEquals('detail', $a->fresh()->peran); // cover lama turun
-        $this->assertEquals('cover', $b->fresh()->peran);  // cover baru
+        $this->assertEquals('detail', $a->fresh()->penempatan);
+        $this->assertEquals('cover', $b->fresh()->penempatan);
+    }
+
+    public function test_ukuran_dan_posisi_foto_strip_bisa_diubah(): void
+    {
+        Storage::fake('public');
+        $work = $this->work();
+        $photo = $this->foto($work, 'strip');
+
+        $this->actingAs($this->admin())->patch("/admin/photos/{$photo->id}", [
+            'penempatan' => 'strip',
+            'ukuran' => 'besar',
+            'posisi' => 'bawah',
+            'urutan' => 3,
+        ])->assertRedirect();
+
+        $photo->refresh();
+        $this->assertEquals('besar', $photo->ukuran);
+        $this->assertEquals('bawah', $photo->posisi);
+        $this->assertEquals(3, $photo->urutan);
     }
 
     public function test_hapus_foto_juga_menghapus_file_fisiknya(): void
@@ -118,10 +191,9 @@ class PhotoTest extends TestCase
         Storage::disk('public')->put('works/1/a_thumb.webp', 'isi');
 
         $work = $this->work();
-        $photo = $work->photos()->create([
+        $photo = $this->foto($work, 'detail', [
             'file_path' => 'works/1/a.webp',
             'thumb_path' => 'works/1/a_thumb.webp',
-            'peran' => 'detail',
         ]);
 
         $this->actingAs($this->admin())->delete("/admin/photos/{$photo->id}")->assertRedirect();

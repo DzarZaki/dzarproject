@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Category;
+use App\Models\Photo;
 use App\Models\Video;
 use App\Models\Work;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -13,6 +14,33 @@ class HomeTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function kategori(string $nama, string $slug, bool $denganFoto = true): Category
+    {
+        $category = new Category;
+        $category->forceFill([
+            'nama' => $nama,
+            'slug' => $slug,
+            'urutan' => 0,
+            'file_path' => $denganFoto ? "categories/{$slug}.webp" : null,
+            'thumb_path' => $denganFoto ? "categories/{$slug}_thumb.webp" : null,
+        ])->save();
+
+        return $category;
+    }
+
+    private function foto(Work $work, string $penempatan, array $extra = []): Photo
+    {
+        $photo = new Photo;
+        $photo->forceFill(array_merge([
+            'work_id' => $work->id,
+            'file_path' => "works/{$work->id}/{$penempatan}-".uniqid().'.webp',
+            'penempatan' => $penempatan,
+            'urutan' => 0,
+        ], $extra))->save();
+
+        return $photo;
+    }
+
     public function test_landing_menampilkan_komponen_home(): void
     {
         $this->get('/')
@@ -20,29 +48,21 @@ class HomeTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->component('Home'));
     }
 
-    public function test_landing_mengirim_foto_sesuai_peran_dan_flag_landing(): void
+    public function test_landing_mengirim_foto_sesuai_penempatannya(): void
     {
-        $kategori = Category::create(['nama' => 'Wedding', 'slug' => 'wedding']);
+        $kategori = $this->kategori('Wedding', 'wedding');
 
-        // Work yang TAMPIL di landing, dengan 3 peran foto
         $work = Work::create([
             'category_id' => $kategori->id,
             'judul' => 'A & Z',
             'slug' => 'a-z',
-            'show_on_landing' => true,
         ]);
-        $work->photos()->create(['file_path' => 'works/1/cover.webp', 'peran' => 'cover']);
-        $work->photos()->create(['file_path' => 'works/1/strip.webp', 'peran' => 'landing_strip']);
-        $work->photos()->create(['file_path' => 'works/1/detail.webp', 'peran' => 'detail']);
 
-        // Work yang TIDAK tampil di landing — tidak boleh ikut
-        $tersembunyi = Work::create([
-            'category_id' => $kategori->id,
-            'judul' => 'B & S',
-            'slug' => 'b-s',
-            'show_on_landing' => false,
-        ]);
-        $tersembunyi->photos()->create(['file_path' => 'works/2/cover.webp', 'peran' => 'cover']);
+        $this->foto($work, 'slideshow');
+        $this->foto($work, 'tipografi');
+        $this->foto($work, 'strip', ['ukuran' => 'besar', 'posisi' => 'atas']);
+        $this->foto($work, 'cover');
+        $this->foto($work, 'detail');
 
         Video::create(['judul' => 'Film', 'youtube_url' => 'https://youtu.be/dQw4w9WgXcQ']);
 
@@ -50,10 +70,37 @@ class HomeTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Home')
-                ->has('heroPhotos', 1)      // hanya cover dari work show_on_landing
+                ->has('slideshow', 1)
+                ->has('tipografiPhotos', 1)
                 ->has('stripPhotos', 1)
-                ->has('tipografiPhotos', 0)
+                ->has('kategori', 1)
                 ->has('videos', 1)
+            );
+    }
+
+    public function test_kategori_di_landing_membawa_link_ke_works_terfilter(): void
+    {
+        $kategori = $this->kategori('Wisuda', 'wisuda');
+        Work::create(['category_id' => $kategori->id, 'judul' => 'B Wisuda', 'slug' => 'b-wisuda']);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('kategori', 1)
+                ->where('kategori.0.nama', 'Wisuda')
+                ->where('kategori.0.link', route('works.index', ['kategori' => 'wisuda']))
+            );
+    }
+
+    public function test_landing_tetap_aman_saat_belum_ada_konten(): void
+    {
+        $this->get('/')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('slideshow', 0)
+                ->has('kategori', 0)
+                ->has('stripPhotos', 0)
+                ->has('videos', 0)
             );
     }
 }

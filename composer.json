@@ -1,9 +1,9 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "dzarproject/website",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
+    "description": "Website portofolio fotografi DzarProject.",
+    "keywords": ["laravel", "inertia", "react", "portfolio", "photography"],
     "license": "MIT",
     "require": {
         "php": "^8.3",
@@ -38,7 +38,10 @@
             "composer install",
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
             "@php artisan key:generate",
+            "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
             "@php artisan migrate --force",
+            "@php artisan storage:link",
+            "@php artisan db:seed --force",
             "npm install --ignore-scripts",
             "npm run build"
         ],

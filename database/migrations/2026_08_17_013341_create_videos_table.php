@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->string('judul')->nullable();
             $table->string('youtube_url');
-            $table->unsignedInteger('urutan')->default(0);
+            $table->unsignedInteger('urutan')->default(0)->index();
             $table->timestamps();
         });
     }

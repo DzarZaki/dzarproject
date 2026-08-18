@@ -1,71 +1,89 @@
 <?php
 
+use App\Http\Controllers\AboutController;
+use App\Http\Controllers\Admin\AboutController as AdminAboutController;
 use App\Http\Controllers\Admin\CategoryController;
-use App\Http\Controllers\Auth\LoginController;
-use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
-use App\Http\Controllers\Admin\WorkController;
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\PhotoController;
 use App\Http\Controllers\Admin\VideoController;
+use App\Http\Controllers\Admin\WorkController;
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PortfolioController;
-use App\Http\Controllers\KontakController;
+use Illuminate\Support\Facades\Route;
 
-
-
-Route::get('/about', [HomeController::class, 'about'])->name('about');
-
+/* ---------------------------------------------------------------- *
+ |  HALAMAN PUBLIC
+ * ---------------------------------------------------------------- */
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/about', [AboutController::class, 'index'])->name('about');
 Route::get('/works', [PortfolioController::class, 'index'])->name('works.index');
 Route::get('/works/{work:slug}', [PortfolioController::class, 'show'])->name('works.show');
+Route::get('/contact', [ContactController::class, 'index'])->name('contact.index');
+
+Route::post('/contact', [ContactController::class, 'kirim'])
+    ->middleware('throttle:10,1')
+    ->name('contact.kirim');
+
+Route::get('/sitemap.xml', [HomeController::class, 'sitemap'])->name('sitemap');
+
+/* ---------------------------------------------------------------- *
+ |  LOGIN ADMIN
+ * ---------------------------------------------------------------- */
 
 Route::middleware('guest')->group(function () {
-    Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
-    Route::post('/login', [LoginController::class, 'login']);
+    Route::get('/login', [LoginController::class, 'tampil'])->name('login');
+    Route::post('/login', [LoginController::class, 'masuk'])->middleware('throttle:6,1');
 });
 
-Route::post('/logout', [LoginController::class, 'logout'])
+Route::post('/logout', [LoginController::class, 'keluar'])
     ->middleware('auth')
     ->name('logout');
 
-Route::post('/kontak', [KontakController::class, 'kirim'])->name('kontak.kirim');
-
-
+/* ---------------------------------------------------------------- *
+ |  HALAMAN ADMIN
+ |  Semua binding memakai {model:id} — jangan pakai slug di admin,
+ |  karena baris slide show tidak punya slug.
+ * ---------------------------------------------------------------- */
 
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/', function () {
-    return Inertia::render('Admin/Dashboard', [
-        'statistik' => [
-            'categories' => \App\Models\Category::count(),
-            'works' => \App\Models\Work::count(),
-            'videos' => \App\Models\Video::count(),
-        ],
-    ]);
-})->name('dashboard');
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
-    Route::resource('categories', CategoryController::class)->except(['show']);
-    Route::resource('works', WorkController::class)->except(['show']);
+    // Works: satu tabel, tiga jenis (slide show / foto horizontal / work)
+    Route::get('/works', [WorkController::class, 'index'])->name('works.index');
+    Route::get('/works/create', [WorkController::class, 'create'])->name('works.create');
+    Route::post('/works', [WorkController::class, 'store'])->name('works.store');
+    Route::get('/works/{work:id}/edit', [WorkController::class, 'edit'])->name('works.edit');
+    Route::post('/works/{work:id}', [WorkController::class, 'update'])->name('works.update');
+    Route::delete('/works/{work:id}', [WorkController::class, 'destroy'])->name('works.destroy');
 
-    Route::get('works/{work}/photos', [PhotoController::class, 'index'])->name('works.photos.index');
-    Route::post('works/{work}/photos', [PhotoController::class, 'store'])->name('works.photos.store');
-    Route::post('works/{work}/photos/drive', [PhotoController::class, 'storeFromDrive'])->name('works.photos.drive');
-    Route::patch('photos/{photo}', [PhotoController::class, 'update'])->name('photos.update');
-    Route::delete('photos/{photo}', [PhotoController::class, 'destroy'])->name('photos.destroy');
+    // Aksi "Foto" = halaman detail (cover, link YouTube, foto zigzag)
+    Route::get('/works/{work:id}/detail', [PhotoController::class, 'edit'])->name('works.detail');
+    Route::post('/works/{work:id}/detail', [PhotoController::class, 'update'])->name('works.detail.update');
+    Route::post('/works/{work:id}/zigzag', [PhotoController::class, 'tambahZigzag'])->name('works.zigzag.store');
+    Route::post('/works/{work:id}/zigzag/drive', [PhotoController::class, 'tambahZigzagDrive'])->name('works.zigzag.drive');
+    Route::post('/works/{work:id}/zigzag/urut', [PhotoController::class, 'urutkanZigzag'])->name('works.zigzag.urut');
+    Route::delete('/photos/{photo:id}', [PhotoController::class, 'destroy'])->name('photos.destroy');
 
-    Route::resource('categories', CategoryController::class)->except(['show']);
-    Route::resource('works', WorkController::class)->except(['show']);
-    Route::resource('videos', VideoController::class)->except(['show']); 
+    // Kategori
+    Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
+    Route::get('/categories/create', [CategoryController::class, 'create'])->name('categories.create');
+    Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
+    Route::get('/categories/{category:id}/edit', [CategoryController::class, 'edit'])->name('categories.edit');
+    Route::post('/categories/{category:id}', [CategoryController::class, 'update'])->name('categories.update');
+    Route::delete('/categories/{category:id}', [CategoryController::class, 'destroy'])->name('categories.destroy');
 
-    Route::get('about', [\App\Http\Controllers\Admin\AboutController::class, 'edit'])->name('about.edit');
-Route::put('about', [\App\Http\Controllers\Admin\AboutController::class, 'update'])->name('about.update');
-Route::post('about/photos', [\App\Http\Controllers\Admin\AboutController::class, 'storePhoto'])->name('about.photos.store');
-Route::patch('about/photos/{aboutPhoto}', [\App\Http\Controllers\Admin\AboutController::class, 'updatePhoto'])->name('about.photos.update');
-Route::delete('about/photos/{aboutPhoto}', [\App\Http\Controllers\Admin\AboutController::class, 'destroyPhoto'])->name('about.photos.destroy');
-    });
+    // Video
+    Route::get('/videos', [VideoController::class, 'index'])->name('videos.index');
+    Route::get('/videos/create', [VideoController::class, 'create'])->name('videos.create');
+    Route::post('/videos', [VideoController::class, 'store'])->name('videos.store');
+    Route::get('/videos/{video:id}/edit', [VideoController::class, 'edit'])->name('videos.edit');
+    Route::put('/videos/{video:id}', [VideoController::class, 'update'])->name('videos.update');
+    Route::delete('/videos/{video:id}', [VideoController::class, 'destroy'])->name('videos.destroy');
 
-    Route::get('/sitemap.xml', function () {
-    return response()
-        ->view('sitemap', ['works' => \App\Models\Work::orderByDesc('updated_at')->get(['slug', 'updated_at'])])
-        ->header('Content-Type', 'application/xml');
+    // About
+    Route::get('/about', [AdminAboutController::class, 'edit'])->name('about.edit');
+    Route::post('/about', [AdminAboutController::class, 'update'])->name('about.update');
 });

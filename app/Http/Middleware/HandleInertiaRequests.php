@@ -9,26 +9,25 @@ class HandleInertiaRequests extends Middleware
 {
     protected $rootView = 'app';
 
-    public function version(Request $request): ?string
-    {
-        return parent::version($request);
-    }
-
     public function share(Request $request): array
-{
-    return [
-        ...parent::share($request),
-        'auth' => [
-            'user' => $request->user()
-                ? [
-                    'name' => $request->user()->name,
-                    'email' => $request->user()->email,
-                ]
-                : null,
-        ],
-        'flash' => [
-            'wa_url' => fn () => $request->session()->get('wa_url'),
-        ],
-    ];
-}
+    {
+        $user = $request->user();
+
+        return [
+            ...parent::share($request),
+
+            'auth' => [
+                'user' => $user ? [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                ] : null,
+            ],
+
+            'flash' => [
+                'sukses' => fn () => $request->session()->get('sukses'),
+                'galat' => fn () => $request->session()->get('galat'),
+            ],
+        ];
+    }
 }

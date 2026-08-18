@@ -1,60 +1,44 @@
-import Reveal from '@/Components/Reveal';
-import PublicLayout from '@/Layouts/PublicLayout';
-import { Head } from '@inertiajs/react';
+import { Head } from '@inertiajs/react'
+import PublicLayout from '@/Layouts/PublicLayout'
 
-export default function About({ about, fotos }) {
+export default function About({ about = {} }) {
+    const label = about.label || 'About Us'
+    const judul = about.judul || 'Authentic Archive'
+
     return (
         <PublicLayout>
-            <Head>
-                <title>About — DzarProject</title>
-                <meta name="description" content={about.teks?.slice(0, 150) || 'Tentang DzarProject.'} />
-            </Head>
+            <Head title="About" />
 
-            {/* Teks singkat + foto pas di kanan */}
-            <section className="mx-auto max-w-5xl px-6 pt-40 pb-24 md:pt-48">
-                <Reveal>
-                    <p className="text-xs tracking-[0.3em] text-muted uppercase">About</p>
-                </Reveal>
+            <section className="px-6 py-24 md:px-10 md:py-36">
+                <p className="text-[10px] uppercase tracking-[0.28em] text-muted">{label}</p>
 
-                <div className="mt-8 flex flex-col-reverse items-start gap-10 md:flex-row md:items-end md:justify-between">
-                    <Reveal className="max-w-2xl">
-                        <h1 className="font-serif text-5xl leading-[1.08] tracking-[-0.02em] md:text-6xl">
-                            {about.judul}
-                        </h1>
-                        <p className="mt-6 leading-[1.6] whitespace-pre-line text-muted">
-                            {about.teks}
-                        </p>
-                    </Reveal>
+                <div className="mt-12 grid gap-10 md:mt-16 md:grid-cols-[minmax(0,0.85fr)_140px_minmax(0,1.7fr)] md:items-start md:gap-14">
+                    <h1 className="font-serif text-3xl leading-tight md:text-4xl">{judul}</h1>
 
-                    {about.foto_url && (
-                        <Reveal className="shrink-0">
-                            <img
-                                src={about.foto_url}
-                                alt="Foto DzarProject"
-                                className="aspect-[3/4] w-40 rounded-sm border border-line object-cover md:w-52"
-                            />
-                        </Reveal>
-                    )}
+                    <div className="w-[140px]">
+                        <div className="aspect-[4/5] overflow-hidden bg-[#e7e5e0]">
+                            {about.portrait_url ? (
+                                <img
+                                    src={about.portrait_url}
+                                    alt=""
+                                    className="h-full w-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] hover:scale-[1.05]"
+                                />
+                            ) : null}
+                        </div>
+                    </div>
+
+                    <div className="space-y-6 text-sm leading-relaxed text-[#3f4658] md:text-[15px]">
+                        {about.paragraf_1 ? <p className="whitespace-pre-line">{about.paragraf_1}</p> : null}
+                        {about.paragraf_2 ? <p className="whitespace-pre-line">{about.paragraf_2}</p> : null}
+                    </div>
                 </div>
             </section>
 
-            {/* Galeri foto di bawahnya */}
-            {fotos.length > 0 && (
-                <section className="mx-auto max-w-6xl px-6 pb-32">
-                    <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-                        {fotos.map((foto) => (
-                            <Reveal key={foto.id}>
-                                <img
-                                    src={foto.url}
-                                    alt=""
-                                    loading="lazy"
-                                    className="aspect-[4/5] w-full rounded-sm border border-line object-cover"
-                                />
-                            </Reveal>
-                        ))}
-                    </div>
+            {about.full_url ? (
+                <section className="h-[52vh] w-full overflow-hidden md:h-[58vh]">
+                    <img src={about.full_url} alt="" className="h-full w-full object-cover grayscale" />
                 </section>
-            )}
+            ) : null}
         </PublicLayout>
-    );
+    )
 }
